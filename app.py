@@ -1,6 +1,6 @@
 import streamlit as st
-import pandas as pd
 import joblib
+import pandas as pd
 
 # Load models and scalers
 crop_model = joblib.load("crop_recmd_model.sav")
@@ -8,34 +8,21 @@ crop_scaler = joblib.load("crop_recmnd_scale.sav")
 fertilizer_model = joblib.load("fertilizer_model.sav")
 fertilizer_scaler = joblib.load("scaler.sav")
 
-# Load fertilizer dataset
+# Load fertilizer dataset to get crop options
 fert_df = pd.read_csv("Fertilizer Prediction.csv")
+crop_options = sorted(fert_df["Crop"].unique())
 
-# Find the correct crop column
-crop_column = None
-for col in fert_df.columns:
-    if "crop" in col.lower():
-        crop_column = col
-        break
+# Expected one-hot encoded column names used in fertilizer model
+fertilizer_model_columns = ['N', 'P', 'K'] + [f'Crop_{crop}' for crop in crop_options]
 
-if crop_column is None:
-    st.error("❌ Could not find a crop column in Fertilizer Prediction.csv")
-    st.stop()
-
-# Crop label mapping (used for prediction output)
-crop_labels = [
-    "rice", "maize", "chickpea", "kidneybeans", "pigeonpeas", "mothbeans",
-    "mungbean", "blackgram", "lentil", "pomegranate", "banana", "mango",
-    "grapes", "watermelon", "muskmelon", "apple", "orange", "papaya",
-    "coconut", "cotton", "jute", "coffee"
-]
-
+# Streamlit page config
 st.set_page_config(page_title="Crop & Fertilizer Recommender", layout="centered")
 st.title("🌱 Crop & Fertilizer Recommendation System")
 
+# Tabs
 tab1, tab2 = st.tabs(["🌾 Crop Recommendation", "💊 Fertilizer Recommendation"])
 
-# --- Crop Recommendation Tab ---
+# ----- Crop Recommendation -----
 with tab1:
     st.header("Crop Recommendation")
 
@@ -50,33 +37,35 @@ with tab1:
     if st.button("🔍 Recommend Crop"):
         input_data = pd.DataFrame([[N, P, K, temperature, humidity, ph, rainfall]],
                                   columns=["N", "P", "K", "temperature", "humidity", "ph", "rainfall"])
-        scaled_input = crop_scaler.transform(input_data)
-        prediction = crop_model.predict(scaled_input)
-        crop_name = crop_labels[prediction[0] - 1]  # model returns index starting from 1
-        st.success(f"✅ Recommended Crop: **{crop_name.capitalize()}**")
+        input_scaled = crop_scaler.transform(input_data)
+        prediction = crop_model.predict(input_scaled)
 
-# --- Fertilizer Recommendation Tab ---
+        st.success(f"✅ Recommended Crop: **{prediction[0].capitalize()}**")
+
+# ----- Fertilizer Recommendation -----
 with tab2:
     st.header("Fertilizer Recommendation")
 
-    crop_options = sorted(fert_df[crop_column].unique())
-    selected_crop = st.selectbox("Select Crop", crop_options)
-    N = st.slider("Nitrogen Level (N)", 0, 140, 50, key="fn")
-    P = st.slider("Phosphorus Level (P)", 5, 145, 50, key="fp")
-    K = st.slider("Potassium Level (K)", 5, 205, 50, key="fk")
+    crop_name = st.selectbox("Select Crop", crop_options)
+    fn = st.slider("Nitrogen Level (N)", 0, 140, 50, key="fn")
+    fp = st.slider("Phosphorus Level (P)", 5, 145, 50, key="fp")
+    fk = st.slider("Potassium Level (K)", 5, 205, 50, key="fk")
 
     if st.button("🔍 Recommend Fertilizer"):
-        try:
-            input_df = pd.DataFrame([[selected_crop, N, P, K]], columns=["Crop", "N", "P", "K"])
-            input_df["Crop"] = input_df["Crop"].astype(str)
+        # Prepare input
+        input_data = pd.DataFrame([[crop_name, fn, fp, fk]], columns=["Crop", "N", "P", "K"])
 
-            # Encoding crop name if model needs it (optional)
-            input_encoded = pd.get_dummies(input_df, columns=["Crop"])
-            input_encoded = input_encoded.reindex(columns=fertilizer_model.feature_names_in_, fill_value=0)
+        # One-hot encode 'Crop'
+        input_encoded = pd.get_dummies(input_data, columns=["Crop"])
 
-            scaled_input = fertilizer_scaler.transform(input_encoded)
-            prediction = fertilizer_model.predict(scaled_input)
-            st.success(f"✅ Recommended Fertilizer: **{prediction[0]}**")
+        # Add missing columns and ensure order
+        for col in fertilizer_model_columns:
+            if col not in input_encoded:
+                input_encoded[col] = 0
+        input_encoded = input_encoded[fertilizer_model_columns]
 
-        except Exception as e:
-            st.error(f"🚨 Error: {e}")
+        # Scale and predict
+        scaled_input = fertilizer_scaler.transform(input_encoded)
+        prediction = fertilizer_model.predict(scaled_input)
+
+        st.success(f"✅ Recommended Fertilizer: **{prediction[0]}**")
