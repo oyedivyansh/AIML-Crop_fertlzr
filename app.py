@@ -11,6 +11,11 @@ fertilizer_scaler = joblib.load("scaler.sav")
 
 # Load fertilizer dataset to get crop names
 fert_df = pd.read_csv("Fertilizer Prediction.csv")
+import pandas as pd
+
+fert_df = pd.read_csv("Fertilizer Prediction.csv")
+st.write("📄 CSV Columns:", fert_df.columns.tolist())  # Show column names in the app
+
 crop_options = sorted(fert_df["Crop"].unique())
 
 st.set_page_config(page_title="Smart Agri Assistant", layout="centered")
