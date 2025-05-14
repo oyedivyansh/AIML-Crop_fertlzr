@@ -71,27 +71,30 @@ with tab2:
     fp = st.slider("Phosphorus Level (P)", 5, 145, 50, key="fp")
     fk = st.slider("Potassium Level (K)", 5, 205, 50, key="fk")
 
-    if st.button("🔍 Recommend Fertilizer"):
-        try:
-            input_df = pd.DataFrame([[selected_crop, fn, fp, fk]], columns=["Crop", "N", "P", "K"])
-            input_df["Crop"] = input_df["Crop"].astype(str)
+if st.button("🔍 Recommend Fertilizer"):
+    try:
+        # Prepare the input dataframe with selected crop and fertilizer levels
+        input_df = pd.DataFrame([[selected_crop, N, P, K]], columns=["Crop", "N", "P", "K"])
+        input_df["Crop"] = input_df["Crop"].astype(str)  # Ensure it's a string
 
-            # One-hot encoding and alignment with model features
-            input_encoded = pd.get_dummies(input_df, columns=["Crop"])
-            
-            # Try to match fertilizer training features (infer from all dummy crops used in the dataset)
-            all_crops = pd.get_dummies(fert_df["Crop"].astype(str), prefix="Crop")
-            expected_columns = ["N", "P", "K"] + list(all_crops.columns)
+        # Dynamically get all possible crop names from the dataset
+        all_crops = pd.get_dummies(fert_df["Crop"].astype(str), prefix="Crop")
+        expected_columns = ["N", "P", "K"] + list(all_crops.columns)
 
-            # One-hot encode input and align
-            input_encoded = pd.get_dummies(input_df, columns=["Crop"])
-            input_encoded = input_encoded.reindex(columns=expected_columns, fill_value=0)
+        # One-hot encode the input crop and align with the expected columns
+        input_encoded = pd.get_dummies(input_df, columns=["Crop"])
+        
+        # Reindex to match the model's expected columns, filling missing values with 0
+        input_encoded = input_encoded.reindex(columns=expected_columns, fill_value=0)
 
+        # Scale the input using the scaler
+        scaled_input = fertilizer_scaler.transform(input_encoded)
 
-            # Scaling and prediction
-            scaled_input = fertilizer_scaler.transform(input_encoded)
-            prediction = fertilizer_model.predict(scaled_input)
+        # Predict using the model
+        prediction = fertilizer_model.predict(scaled_input)
 
-            st.success(f"✅ Recommended Fertilizer: **{prediction[0]}**")
-        except Exception as e:
-            st.error(f"🚨 Error during fertilizer prediction: {e}")
+        # Show the recommendation
+        st.success(f"✅ Recommended Fertilizer: **{prediction[0]}**")
+
+    except Exception as e:
+        st.error(f"🚨 Error during fertilizer prediction: {e}")
