@@ -4,28 +4,40 @@ import joblib
 
 # Load models and scalers
 crop_model = joblib.load("crop_recmd_model.sav")
-crop_scaler = joblib.load("scaler_crop.sav")
-
+crop_scaler = joblib.load("crop_recmnd_scale.sav")
 fertilizer_model = joblib.load("fertilizer_model.sav")
 fertilizer_scaler = joblib.load("scaler.sav")
 
-# Load fertilizer dataset to get crop names
+# Load fertilizer dataset
 fert_df = pd.read_csv("Fertilizer Prediction.csv")
-import pandas as pd
 
-fert_df = pd.read_csv("Fertilizer Prediction.csv")
-st.write("📄 CSV Columns:", fert_df.columns.tolist())  # Show column names in the app
+# Find the correct crop column
+crop_column = None
+for col in fert_df.columns:
+    if "crop" in col.lower():
+        crop_column = col
+        break
 
-crop_options = sorted(fert_df["Crop"].unique())
+if crop_column is None:
+    st.error("❌ Could not find a crop column in Fertilizer Prediction.csv")
+    st.stop()
 
-st.set_page_config(page_title="Smart Agri Assistant", layout="centered")
-st.title("🌾 Crop & Fertilizer Recommendation System")
+# Crop label mapping (used for prediction output)
+crop_labels = [
+    "rice", "maize", "chickpea", "kidneybeans", "pigeonpeas", "mothbeans",
+    "mungbean", "blackgram", "lentil", "pomegranate", "banana", "mango",
+    "grapes", "watermelon", "muskmelon", "apple", "orange", "papaya",
+    "coconut", "cotton", "jute", "coffee"
+]
 
-tab1, tab2 = st.tabs(["🌿 Crop Recommendation", "🧪 Fertilizer Recommendation"])
+st.set_page_config(page_title="Crop & Fertilizer Recommender", layout="centered")
+st.title("🌱 Crop & Fertilizer Recommendation System")
 
-# 🌿 CROP RECOMMENDATION TAB
+tab1, tab2 = st.tabs(["🌾 Crop Recommendation", "💊 Fertilizer Recommendation"])
+
+# --- Crop Recommendation Tab ---
 with tab1:
-    st.subheader("🌱 Input Soil & Weather Data for Crop Recommendation")
+    st.header("Crop Recommendation")
 
     N = st.slider("Nitrogen (N)", 0, 140, 50)
     P = st.slider("Phosphorus (P)", 5, 145, 50)
@@ -35,28 +47,36 @@ with tab1:
     ph = st.number_input("pH", 0.0, 14.0, 6.5)
     rainfall = st.number_input("Rainfall (mm)", 0.0, 500.0, 100.0)
 
-    if st.button("🌿 Recommend Crop"):
+    if st.button("🔍 Recommend Crop"):
         input_data = pd.DataFrame([[N, P, K, temperature, humidity, ph, rainfall]],
                                   columns=["N", "P", "K", "temperature", "humidity", "ph", "rainfall"])
-        input_scaled = crop_scaler.transform(input_data)
-        prediction = crop_model.predict(input_scaled)
-        st.success(f"✅ Recommended Crop: **{prediction[0].capitalize()}**")
+        scaled_input = crop_scaler.transform(input_data)
+        prediction = crop_model.predict(scaled_input)
+        crop_name = crop_labels[prediction[0] - 1]  # model returns index starting from 1
+        st.success(f"✅ Recommended Crop: **{crop_name.capitalize()}**")
 
-# 🧪 FERTILIZER RECOMMENDATION TAB
+# --- Fertilizer Recommendation Tab ---
 with tab2:
-    st.subheader("🌾 Input Soil Nutrients for Fertilizer Recommendation")
+    st.header("Fertilizer Recommendation")
 
+    crop_options = sorted(fert_df[crop_column].unique())
     selected_crop = st.selectbox("Select Crop", crop_options)
     N = st.slider("Nitrogen Level (N)", 0, 140, 50, key="fn")
     P = st.slider("Phosphorus Level (P)", 5, 145, 50, key="fp")
     K = st.slider("Potassium Level (K)", 5, 205, 50, key="fk")
 
-    if st.button("🧪 Recommend Fertilizer"):
-        # Match crop name to numeric encoding if your model expects it
-        crop_row = fert_df[fert_df["Crop"] == selected_crop].iloc[0]
-        crop_code = crop_row["Crop_code"] if "Crop_code" in crop_row else crop_options.index(selected_crop)
+    if st.button("🔍 Recommend Fertilizer"):
+        try:
+            input_df = pd.DataFrame([[selected_crop, N, P, K]], columns=["Crop", "N", "P", "K"])
+            input_df["Crop"] = input_df["Crop"].astype(str)
 
-        input_data = pd.DataFrame([[crop_code, N, P, K]], columns=["Crop", "N", "P", "K"])
-        input_scaled = fertilizer_scaler.transform(input_data)
-        prediction = fertilizer_model.predict(input_scaled)
-        st.success(f"✅ Recommended Fertilizer: **{prediction[0]}**")
+            # Encoding crop name if model needs it (optional)
+            input_encoded = pd.get_dummies(input_df, columns=["Crop"])
+            input_encoded = input_encoded.reindex(columns=fertilizer_model.feature_names_in_, fill_value=0)
+
+            scaled_input = fertilizer_scaler.transform(input_encoded)
+            prediction = fertilizer_model.predict(scaled_input)
+            st.success(f"✅ Recommended Fertilizer: **{prediction[0]}**")
+
+        except Exception as e:
+            st.error(f"🚨 Error: {e}")
