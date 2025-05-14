@@ -78,7 +78,15 @@ with tab2:
 
             # One-hot encoding and alignment with model features
             input_encoded = pd.get_dummies(input_df, columns=["Crop"])
-            input_encoded = input_encoded.reindex(columns=fertilizer_model.feature_names_in_, fill_value=0)
+            
+            # Try to match fertilizer training features (infer from all dummy crops used in the dataset)
+            all_crops = pd.get_dummies(fert_df["Crop"].astype(str), prefix="Crop")
+            expected_columns = ["N", "P", "K"] + list(all_crops.columns)
+
+            # One-hot encode input and align
+            input_encoded = pd.get_dummies(input_df, columns=["Crop"])
+            input_encoded = input_encoded.reindex(columns=expected_columns, fill_value=0)
+
 
             # Scaling and prediction
             scaled_input = fertilizer_scaler.transform(input_encoded)
