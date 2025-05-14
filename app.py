@@ -77,23 +77,23 @@ if st.button("🔍 Recommend Fertilizer"):
         input_df = pd.DataFrame([[selected_crop, N, P, K]], columns=["Crop", "N", "P", "K"])
         input_df["Crop"] = input_df["Crop"].astype(str)  # Ensure it's a string
 
-        # Dynamically get all possible crop names from the dataset
-        all_crops = pd.get_dummies(fert_df["Crop"].astype(str), prefix="Crop")
-        expected_columns = ["N", "P", "K"] + list(all_crops.columns)
-
-        # One-hot encode the input crop and align with the expected columns
+        # One-hot encode the crop feature
         input_encoded = pd.get_dummies(input_df, columns=["Crop"])
-        
-        # Reindex to match the model's expected columns, filling missing values with 0
+
+        # Get all possible crops from the training data and ensure alignment
+        crop_dummies = pd.get_dummies(fert_df["Crop"])
+        expected_columns = crop_dummies.columns.tolist() + ["N", "P", "K"]
+
+        # Reindex the input_encoded DataFrame to match the model's expected columns
         input_encoded = input_encoded.reindex(columns=expected_columns, fill_value=0)
 
-        # Scale the input using the scaler
+        # Scale the input using the fertilizer scaler
         scaled_input = fertilizer_scaler.transform(input_encoded)
 
-        # Predict using the model
+        # Predict using the fertilizer model
         prediction = fertilizer_model.predict(scaled_input)
 
-        # Show the recommendation
+        # Display the fertilizer recommendation
         st.success(f"✅ Recommended Fertilizer: **{prediction[0]}**")
 
     except Exception as e:
