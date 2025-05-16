@@ -76,22 +76,22 @@ with tab2:
     K = st.slider("Potassium Level (K)", 5, 205, 50)
 
     if st.button("🔍 Recommend Fertilizer"):
-    try:
-        input_df = pd.DataFrame([[selected_crop, N, P, K]], columns=["Crop", "Nitrogen", "Phosphorous", "Potassium"])
-        input_df["Crop"] = input_df["Crop"].astype(str)
+        try:
+            input_df = pd.DataFrame([[selected_crop, N, P, K]], columns=["Crop", "Nitrogen", "Phosphorous", "Potassium"])
+            input_df["Crop"] = input_df["Crop"].astype(str)
 
-        # One-hot encode the Crop column
-        input_encoded = pd.get_dummies(input_df, columns=["Crop"])
+            # One-hot encode the Crop column
+            input_encoded = pd.get_dummies(input_df, columns=["Crop"])
 
-        # Align columns
-        crop_dummies = pd.get_dummies(fert_df["Crop"])
-        expected_columns = crop_dummies.columns.tolist() + ["Nitrogen", "Phosphorous", "Potassium"]
-        input_encoded = input_encoded.reindex(columns=expected_columns, fill_value=0)
+            # Align columns
+            crop_dummies = pd.get_dummies(fert_df["Crop"])
+            expected_columns = crop_dummies.columns.tolist() + ["Nitrogen", "Phosphorous", "Potassium"]
+            input_encoded = input_encoded.reindex(columns=expected_columns, fill_value=0)
 
-        # Scale and predict
-        scaled_input = fertilizer_scaler.transform(input_encoded)
-        prediction = fertilizer_model.predict(scaled_input)
+            # Scale and predict
+            scaled_input = fertilizer_scaler.transform(input_encoded)
+            prediction = fertilizer_model.predict(scaled_input)
 
-        st.success(f"✅ Recommended Fertilizer: **{prediction[0]}**")
-    except Exception as e:
-        st.error(f"🚨 Error during fertilizer prediction: {e}")
+            st.success(f"✅ Recommended Fertilizer: **{prediction[0]}**")
+        except Exception as e:
+            st.error(f"🚨 Error during fertilizer prediction: {e}")
