@@ -5,8 +5,8 @@ import joblib
 # Load models and scalers
 crop_model = joblib.load("crop_recmd_model.sav")
 crop_scaler = joblib.load("crop_recmnd_scale.sav")
-fertilizer_model = joblib.load("fertilizer_model.sav")
-fertilizer_scaler = joblib.load("scaler.sav")
+fertilizer_model = joblib.load("fertilizer_model (1).sav")
+fertilizer_scaler = joblib.load("scaler (1).sav")
 
 # Load fertilizer dataset
 fert_df = pd.read_csv("Fertilizer Prediction.csv")
