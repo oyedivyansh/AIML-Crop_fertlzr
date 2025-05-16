@@ -62,36 +62,41 @@ with tab1:
 # ================================
 # 💊 FERTILIZER RECOMMENDATION TAB
 # ================================
+# --- Fertilizer Recommendation Tab ---
 with tab2:
     st.header("Fertilizer Recommendation")
 
-    selected_crop = st.selectbox("Select Crop", le_crop.classes_)
-    selected_soil = st.selectbox("Select Soil Type", le_soil.classes_)
+    # Show crop options
+    crop_options = sorted(fert_df["Crop"].dropna().unique())
+    selected_crop = st.selectbox("Select Crop", crop_options)
 
-    temp = st.slider("Temperature (°C)", 0, 60, 25)
-    humidity = st.slider("Humidity (%)", 0, 100, 50)
-    moisture = st.slider("Soil Moisture (%)", 0, 100, 30)
-    N = st.slider("Nitrogen Level (N)", 0, 140, 50)
-    P = st.slider("Phosphorus Level (P)", 5, 145, 50)
-    K = st.slider("Potassium Level (K)", 5, 205, 50)
+    N = st.slider("Nitrogen Level (N)", 0, 140, 50, key="fn")
+    P = st.slider("Phosphorus Level (P)", 5, 145, 50, key="fp")
+    K = st.slider("Potassium Level (K)", 5, 205, 50, key="fk")
 
     if st.button("🔍 Recommend Fertilizer"):
         try:
-            input_df = pd.DataFrame([[selected_crop, N, P, K]], columns=["Crop", "Nitrogen", "Phosphorous", "Potassium"])
-            input_df["Crop"] = input_df["Crop"].astype(str)
+            # Step 1: Prepare input DataFrame with correct column names
+            input_df = pd.DataFrame([[selected_crop, N, P, K]],
+                columns=["Crop", "Nitrogen", "Phosphorous", "Potassium"]
+            )
 
-            # One-hot encode the Crop column
+            # Step 2: One-hot encode the 'Crop' column
             input_encoded = pd.get_dummies(input_df, columns=["Crop"])
 
-            # Align columns
+            # Step 3: Align columns with what the model was trained on
             crop_dummies = pd.get_dummies(fert_df["Crop"])
             expected_columns = crop_dummies.columns.tolist() + ["Nitrogen", "Phosphorous", "Potassium"]
             input_encoded = input_encoded.reindex(columns=expected_columns, fill_value=0)
 
-            # Scale and predict
+            # Step 4: Scale and predict
             scaled_input = fertilizer_scaler.transform(input_encoded)
             prediction = fertilizer_model.predict(scaled_input)
 
             st.success(f"✅ Recommended Fertilizer: **{prediction[0]}**")
         except Exception as e:
             st.error(f"🚨 Error during fertilizer prediction: {e}")
+
+
+
+
