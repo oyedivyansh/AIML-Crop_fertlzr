@@ -2,6 +2,9 @@ import streamlit as st
 import pandas as pd
 import joblib
 
+# Must be the very first Streamlit command — no st.write or print above this!
+st.set_page_config(page_title="Crop & Fertilizer Recommender", layout="centered")
+
 # Load models and scalers
 crop_model = joblib.load("crop_recmd_model.sav")
 crop_scaler = joblib.load("crop_recmnd_scale.sav")
@@ -11,20 +14,11 @@ fertilizer_scaler = joblib.load("scaler (1).sav")
 # Load fertilizer dataset
 fert_df = pd.read_csv("Fertilizer Prediction.csv")
 
-# Debug: show columns to make sure column names are correct
-st.write("Fertilizer dataset columns:", fert_df.columns.tolist())
+# Fertilizer dataset columns you shared:
+# ['Temparature', 'Humidity ', 'Moisture', 'Soil Type', 'Crop Type', 'Nitrogen', 'Potassium', 'Phosphorous', 'Fertilizer Name']
 
-# Detect correct Crop column name for fertilizer data
-crop_col_candidates = ['Crop', 'Crop Type', 'crop', 'crop_type']
-fert_crop_col = None
-for col in crop_col_candidates:
-    if col in fert_df.columns:
-        fert_crop_col = col
-        break
-
-if fert_crop_col is None:
-    st.error("❌ Could not find a 'Crop' column in Fertilizer Prediction.csv. Columns found: " + ", ".join(fert_df.columns))
-    st.stop()
+# Fix column names for consistent usage (strip spaces)
+fert_df.columns = fert_df.columns.str.strip()
 
 # Crop labels for crop recommendation output (index-based)
 crop_labels = [
@@ -34,13 +28,10 @@ crop_labels = [
     "coconut", "cotton", "jute", "coffee"
 ]
 
-# Streamlit UI setup
-st.set_page_config(page_title="Crop & Fertilizer Recommender", layout="centered")
 st.title("🌱 Crop & Fertilizer Recommendation System")
 
 tab1, tab2 = st.tabs(["🌾 Crop Recommendation", "💊 Fertilizer Recommendation"])
 
-# --- Crop Recommendation Tab ---
 with tab1:
     st.header("Crop Recommendation")
 
@@ -67,38 +58,36 @@ with tab1:
         except Exception as e:
             st.error(f"🚨 Could not make crop recommendation: {e}")
 
-# --- Fertilizer Recommendation Tab ---
 with tab2:
     st.header("Fertilizer Recommendation")
 
-    crop_options = sorted(fert_df[fert_crop_col].dropna().unique())
+    crop_options = sorted(fert_df["Crop Type"].dropna().unique())
     selected_crop = st.selectbox("Select Crop", crop_options)
+
     N = st.slider("Nitrogen Level (N)", 0, 140, 50, key="fn")
-    P = st.slider("Phosphorus Level (P)", 5, 145, 50, key="fp")
+    P = st.slider("Phosphorous Level (P)", 5, 145, 50, key="fp")
     K = st.slider("Potassium Level (K)", 5, 205, 50, key="fk")
 
     if st.button("🔍 Recommend Fertilizer"):
         try:
             # Prepare input dataframe with selected crop and fertilizer levels
-            input_df = pd.DataFrame([[selected_crop, N, P, K]], columns=[fert_crop_col, "N", "P", "K"])
-            input_df[fert_crop_col] = input_df[fert_crop_col].astype(str)
+            input_df = pd.DataFrame([[selected_crop, N, P, K]], columns=["Crop Type", "Nitrogen", "Phosphorous", "Potassium"])
 
-            # One-hot encode the Crop column for input
-            input_encoded = pd.get_dummies(input_df, columns=[fert_crop_col])
+            # One-hot encode the crop column
+            input_encoded = pd.get_dummies(input_df, columns=["Crop Type"])
 
-            # One-hot encode the training fertilizer dataframe's crop column to get expected columns
-            fert_crop_dummies = pd.get_dummies(fert_df[fert_crop_col])
+            # Get fertilizer data one-hot encoded crop columns
+            fert_crop_dummies = pd.get_dummies(fert_df["Crop Type"])
 
-            # Expected feature columns = crop dummies + N, P, K
-            expected_cols = fert_crop_dummies.columns.tolist() + ["N", "P", "K"]
+            expected_cols = fert_crop_dummies.columns.tolist() + ["Nitrogen", "Phosphorous", "Potassium"]
 
-            # Align input columns to expected columns (add missing cols with 0)
+            # Align input to expected features
             input_encoded = input_encoded.reindex(columns=expected_cols, fill_value=0)
 
-            # Scale the input features
+            # Scale features
             scaled_input = fertilizer_scaler.transform(input_encoded)
 
-            # Predict fertilizer recommendation
+            # Predict fertilizer
             prediction = fertilizer_model.predict(scaled_input)
 
             st.success(f"✅ Recommended Fertilizer: **{prediction[0]}**")
